@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2019 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2020 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -54,14 +54,14 @@ def QA_data_tick_resample_1min(tick, type_='1min', if_drop=True):
                                          closed='left',
                                          base=30,
                                          loffset=type_
-        ).apply(
+                                     ).apply(
                                          {
                                              'price': 'ohlc',
                                              'vol': 'sum',
                                              'code': 'last',
                                              'amount': 'sum'
                                          }
-        )
+                                     )
         _data1.columns = _data1.columns.droplevel(0)
         # do fix on the first and last bar
         # 某些股票某些日期没有集合竞价信息，譬如 002468 在 2017 年 6 月 5 日的数据
@@ -148,14 +148,14 @@ def QA_data_tick_resample_1min(tick, type_='1min', if_drop=True):
                                         closed='left',
                                         base=30,
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'price': 'ohlc',
                                             'vol': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         _data2.columns = _data2.columns.droplevel(0)
         # 沪市股票在 2018-08-20 起，尾盘 3 分钟集合竞价
@@ -187,11 +187,19 @@ def QA_data_tick_resample_1min(tick, type_='1min', if_drop=True):
         else:
             # 避免出现 tick 数据没有 15:00 的值
             if len(_data.loc[time(13, 0):time(13, 0)]) > 0:
-                _data2.loc[time(15,
-                                0):time(15,
-                                        0)] = _data2.loc[time(15,
-                                                              1):time(15,
-                                                                      1)].values
+                if (len(_data2.loc[time(15, 1):time(15, 1)]) > 0):
+                    _data2.loc[time(15,
+                                    0):time(15,
+                                            0)] = _data2.loc[time(15,
+                                                                  1):time(15,
+                                                                          1)].values
+                else:
+                    # 这种情况下每天下午收盘后15:00已经具有tick值，不需要另行额外填充
+                    #  -- 阿财 2020/05/27
+                    #print(_data2.loc[time(15,
+                    #                0):time(15,
+                    #                        0)])
+                    pass
         _data2 = _data2.loc[time(13, 1):time(15, 0)]
         resx = resx.append(_data1).append(_data2)
     resx['vol'] = resx['vol'] * 100.0
@@ -224,14 +232,14 @@ def QA_data_tick_resample(tick, type_='1min'):
                                          closed='right',
                                          base=30,
                                          loffset=type_
-        ).apply(
+                                     ).apply(
                                          {
                                              'price': 'ohlc',
                                              'vol': 'sum',
                                              'code': 'last',
                                              'amount': 'sum'
                                          }
-        )
+                                     )
 
         _data2 = _data[time(13,
                             1):time(15,
@@ -239,14 +247,14 @@ def QA_data_tick_resample(tick, type_='1min'):
                                         type_,
                                         closed='right',
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'price': 'ohlc',
                                             'vol': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         resx = resx.append(_data1).append(_data2)
     resx.columns = resx.columns.droplevel(0)
@@ -283,14 +291,14 @@ def QA_data_ctptick_resample(tick, type_='1min'):
                                         closed='right',
                                         base=30,
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'LastPrice': 'ohlc',
                                             'volume': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         _data1 = _data[time(9,
                             0):time(11,
@@ -299,14 +307,14 @@ def QA_data_ctptick_resample(tick, type_='1min'):
                                         closed='right',
                                         base=30,
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'LastPrice': 'ohlc',
                                             'volume': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         _data2 = _data[time(13,
                             1):time(15,
@@ -315,14 +323,14 @@ def QA_data_ctptick_resample(tick, type_='1min'):
                                         closed='right',
                                         base=30,
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'LastPrice': 'ohlc',
                                             'volume': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         _data3 = _data[time(21,
                             0):time(23,
@@ -330,14 +338,14 @@ def QA_data_ctptick_resample(tick, type_='1min'):
                                         type_,
                                         closed='left',
                                         loffset=type_
-        ).apply(
+                                    ).apply(
                                         {
                                             'LastPrice': 'ohlc',
                                             'volume': 'sum',
                                             'code': 'last',
                                             'amount': 'sum'
                                         }
-        )
+                                    )
 
         resx = resx.append(_data0).append(_data1).append(_data2).append(_data3)
     resx.columns = resx.columns.droplevel(0)
@@ -392,7 +400,12 @@ def QA_data_min_resample(min_data, type_='5min'):
         closed='right',
         loffset=type_
     ).agg(CONVERSION)
-    return pd.concat([part_1_res, part_2_res]).dropna().sort_index().reset_index().set_index(['datetime', 'code'])
+    part_1_res['type'] = part_2_res['type'] = type_ if (type_ !='1D') else 'day'
+    return pd.concat(
+        [part_1_res,
+         part_2_res]
+    ).dropna().sort_index().reset_index().set_index(['datetime',
+                                                     'code'])
 
 
 def QA_data_stockmin_resample(min_data, period=5):
@@ -413,15 +426,19 @@ def QA_data_stockmin_resample(min_data, period=5):
     if 'datetime' not in min_data.columns:
         return None
     # 9:30 - 11:30
-    min_data_morning = min_data.set_index(
-        "datetime").loc[time(9, 30):time(11, 30)].reset_index()
-    min_data_morning.index = pd.DatetimeIndex(
-        min_data_morning.datetime).to_period('T')
+    min_data_morning = min_data.set_index("datetime"
+                                         ).loc[time(9,
+                                                    30):time(11,
+                                                             30)].reset_index()
+    min_data_morning.index = pd.DatetimeIndex(min_data_morning.datetime
+                                             ).to_period('T')
     # 13:00 - 15:00
-    min_data_afternoon = min_data.set_index(
-        "datetime").loc[time(13, 00):time(15, 00)].reset_index()
-    min_data_afternoon.index = pd.DatetimeIndex(
-        min_data_afternoon.datetime).to_period('T')
+    min_data_afternoon = min_data.set_index("datetime").loc[
+        time(13,
+             00):time(15,
+                      00)].reset_index()
+    min_data_afternoon.index = pd.DatetimeIndex(min_data_afternoon.datetime
+                                               ).to_period('T')
 
     _conversion = {
         'code': 'first',
@@ -437,12 +454,18 @@ def QA_data_stockmin_resample(min_data, period=5):
     if 'amount' in min_data.columns:
         _conversion['amount'] = 'sum'
 
-    res = pd.concat([
-        min_data_morning.resample(
-            _period, closed="right", kind="period").apply(_conversion).dropna(),
-        min_data_afternoon.resample(
-            _period, closed="right", kind="period").apply(_conversion).dropna()
-    ])
+    res = pd.concat(
+        [
+            min_data_morning.resample(_period,
+                                      closed="right",
+                                      kind="period").apply(_conversion
+                                                          ).dropna(),
+            min_data_afternoon.resample(_period,
+                                        closed="right",
+                                        kind="period").apply(_conversion
+                                                            ).dropna()
+        ]
+    )
     # 10:31:00 => 10:30:00
     res.index = (res.index + res.index.freq).to_timestamp() - \
         pd.Timedelta(minutes=1)
@@ -468,13 +491,18 @@ def QA_data_min_to_day(min_data, type_='1D'):
         'amount': 'sum'
     }
 
-    return data.reset_index(1).resample(
-            type_,
-            base=0,
-            closed='right'
-        ).agg(CONVERSION).dropna()
+    return min_data.reset_index(1).resample(
+        type_,
+        base=0,
+        closed='right'
+    ).agg(CONVERSION).dropna()
 
-def QA_data_futuremin_resample(min_data, type_='5min', exchange_id=EXCHANGE_ID.SHFE):
+
+def QA_data_futuremin_resample(
+    min_data,
+    type_='5min',
+    exchange_id=EXCHANGE_ID.SHFE
+):
     """期货分钟线采样成大周期
 
 
@@ -525,7 +553,8 @@ def QA_data_futuremin_resample(min_data, type_='5min', exchange_id=EXCHANGE_ID.S
         'close': 'last',
         'tradetime': 'last',
         'position': 'last',
-        'volume': 'sum'}
+        'volume': 'sum'
+    }
     min_data = min_data.loc[:, list(CONVERSION.keys())]
     idx = min_data.index
     if exchange_id == EXCHANGE_ID.CFFEX:
@@ -543,10 +572,18 @@ def QA_data_futuremin_resample(min_data, type_='5min', exchange_id=EXCHANGE_ID.S
             closed='right',
             loffset=type_
         ).agg(CONVERSION)
-        return pd.concat([part_1_res, part_2_res]).dropna().sort_index().reset_index().set_index(['datetime', 'code'])
+        return pd.concat(
+            [part_1_res,
+             part_2_res]
+        ).dropna().sort_index().reset_index().set_index(['datetime',
+                                                         'code'])
     else:
-        part_1 = min_data.iloc[np.append(idx.indexer_between_time(
-            '0:00', '11:30'), idx.indexer_between_time('0:00', '11:30'))]
+        part_1 = min_data.iloc[np.append(
+            idx.indexer_between_time('0:00',
+                                     '11:30'),
+            idx.indexer_between_time('0:00',
+                                     '11:30')
+        )]
         part_1_res = part_1.resample(
             type_,
             base=0,
@@ -567,10 +604,19 @@ def QA_data_futuremin_resample(min_data, type_='5min', exchange_id=EXCHANGE_ID.S
             closed='right',
             loffset=type_
         ).agg(CONVERSION)
-        return pd.concat([part_1_res, part_2_res, part_3_res]).dropna().sort_index().reset_index().set_index(['datetime', 'code'])
+        return pd.concat(
+            [part_1_res,
+             part_2_res,
+             part_3_res]
+        ).dropna().sort_index().reset_index().set_index(['datetime',
+                                                         'code'])
 
 
-def QA_data_futuremin_resample_tb_kq(min_data, type_='5min', exchange_id=EXCHANGE_ID.SHFE):
+def QA_data_futuremin_resample_tb_kq(
+    min_data,
+    type_='5min',
+    exchange_id=EXCHANGE_ID.SHFE
+):
     """期货分钟线采样成大周期
 
     此采样方法仅适用于tb/快期, 因此单独拿出来
@@ -591,16 +637,24 @@ def QA_data_futuremin_resample_tb_kq(min_data, type_='5min', exchange_id=EXCHANG
         'close': 'last',
         'tradetime': 'last',
         'position': 'last',
-        'volume': 'sum'}
+        'volume': 'sum'
+    }
     min_data = min_data.loc[:, list(CONVERSION.keys())]
     return min_data.resample(
         type_,
         base=0,
         closed='left'
-    ).agg(CONVERSION).dropna().sort_index().reset_index().set_index(['datetime', 'code'])
+    ).agg(CONVERSION).dropna().sort_index().reset_index().set_index(
+        ['datetime',
+         'code']
+    )
 
 
-def QA_data_futuremin_resample_tb_kq2(min_data, type_='5min', exchange_id=EXCHANGE_ID.SHFE):
+def QA_data_futuremin_resample_tb_kq2(
+    min_data,
+    type_='5min',
+    exchange_id=EXCHANGE_ID.SHFE
+):
     """期货分钟线采样成大周期
 
     此采样方法仅适用于tb/快期, 因此单独拿出来
@@ -619,16 +673,24 @@ def QA_data_futuremin_resample_tb_kq2(min_data, type_='5min', exchange_id=EXCHAN
         'close': 'last',
         'tradetime': 'last',
         'position': 'last',
-        'volume': 'sum'}
+        'volume': 'sum'
+    }
     min_data = min_data.loc[:, list(CONVERSION.keys())]
     return min_data.resample(
         type_,
         base=0,
         closed='right'
-    ).agg(CONVERSION).dropna().sort_index().reset_index().set_index(['datetime', 'code'])
+    ).agg(CONVERSION).dropna().sort_index().reset_index().set_index(
+        ['datetime',
+         'code']
+    )
 
 
-def QA_data_futuremin_resample_today(min_data, type_='1D', exchange_id=EXCHANGE_ID.SHFE):
+def QA_data_futuremin_resample_today(
+    min_data,
+    type_='1D',
+    exchange_id=EXCHANGE_ID.SHFE
+):
     """期货分钟线采样成大周期
 
 
@@ -676,7 +738,12 @@ def QA_data_futuremin_resample_today(min_data, type_='1D', exchange_id=EXCHANGE_
                'low': 'min', 'close': 'last', 'volume': 'sum'}).dropna()
 
 
-def QA_data_futuremin_resample_series(min_data, key='open', type_='5min', exchange_id=EXCHANGE_ID.SHFE):
+def QA_data_futuremin_resample_series(
+    min_data,
+    key='open',
+    type_='5min',
+    exchange_id=EXCHANGE_ID.SHFE
+):
 
     if isinstance(min_data.index, pd.MultiIndex):
         min_data = min_data.reset_index(1)
@@ -689,7 +756,8 @@ def QA_data_futuremin_resample_series(min_data, key='open', type_='5min', exchan
         'high': 'max',
         'low': 'min',
         'close': 'last',
-        'volume': 'sum'}
+        'volume': 'sum'
+    }
 
     if exchange_id == EXCHANGE_ID.CFFEX:
         part_1 = min_data.iloc[idx.indexer_between_time('9:30', '11:30')]
@@ -708,8 +776,12 @@ def QA_data_futuremin_resample_series(min_data, key='open', type_='5min', exchan
         ).agg({key: CONVERSION[key]})
         return pd.concat([part_1_res, part_2_res]).dropna().sort_index()
     else:
-        part_1 = min_data.iloc[np.append(idx.indexer_between_time(
-            '0:00', '11:30'), idx.indexer_between_time('0:00', '11:30'))]
+        part_1 = min_data.iloc[np.append(
+            idx.indexer_between_time('0:00',
+                                     '11:30'),
+            idx.indexer_between_time('0:00',
+                                     '11:30')
+        )]
         part_1_res = part_1.resample(
             type_,
             base=0,
@@ -766,11 +838,101 @@ def QA_data_day_resample(day_data, type_='w'):
         'date': 'last'
     }
 
-    data = day_data.resample(
+    data = day_data.resample(type_, closed='right').apply(CONVERSION).dropna()
+    return data.assign(date=pd.to_datetime(data.date)
+                      ).set_index(['date',
+                                   'code'])
+
+
+def QA_data_futureday_resample(day_data, type_='w'):
+    """期货日线降采样
+
+    Arguments:
+        day_data {[type]} -- [description]
+
+    Keyword Arguments:
+        type_ {str} -- [description] (default: {'w'})
+
+    Returns:
+        [type] -- [description]
+    """
+    # return day_data_p.assign(open=day_data.open.resample(type_).first(),high=day_data.high.resample(type_).max(),low=day_data.low.resample(type_).min(),\
+    #             vol=day_data.vol.resample(type_).sum() if 'vol' in day_data.columns else day_data.volume.resample(type_).sum(),\
+    #             amount=day_data.amount.resample(type_).sum()).dropna().set_index('date')
+    try:
+        day_data = day_data.reset_index().set_index('date', drop=False)
+    except:
+        day_data = day_data.set_index('date', drop=False)
+
+    CONVERSION = {
+        'code': 'first',
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'vol': 'sum',
+        'position': 'sum',
+        'date': 'last'
+    } if 'vol' in day_data.columns else {
+        'code': 'first',
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum',
+        'position': 'sum',
+        'date': 'last'
+    }
+
+    data = day_data.resample(type_, closed='right').apply(CONVERSION).dropna()
+    return data.assign(date=pd.to_datetime(data.date)
+                      ).set_index(['date',
+                                   'code'])
+
+
+def QA_data_cryptocurrency_min_resample(min_data, type_='5min'):
+    """数字加密资产的分钟线采样成大周期
+
+
+    分钟线采样成子级别的分钟线
+
+
+    time+ OHLC==> resample
+    Arguments:
+        min {[type]} -- [description]
+        raw_type {[type]} -- [description]
+        new_type {[type]} -- [description]
+    """
+
+    CONVERSION = {
+        'code': 'first',
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'trade': 'sum',
+        'vol': 'sum',
+        'amount': 'sum'
+    } if 'vol' in min_data.columns else {
+        'code': 'first',
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'trade': 'sum',
+        'volume': 'sum',
+        'amount': 'sum'
+    }
+    min_data = min_data.loc[:, list(CONVERSION.keys())]
+    data = min_data.resample(
         type_,
-        closed='right'
+        base=0,
+        closed='right',
+        loffset=type_
     ).apply(CONVERSION).dropna()
-    return data.assign(date=pd.to_datetime(data.date)).set_index(['date', 'code'])
+    return data.assign(datetime=pd.to_datetime(data.index)
+                      ).set_index(['datetime',
+                                   'code'])
 
 
 if __name__ == '__main__':
@@ -790,6 +952,11 @@ if __name__ == '__main__':
     data = QA.QA_fetch_stock_min_adv("000001", start, end)
     res = QA_data_stockmin_resample(data.data, level)
     print(res)
-    res2 = QA.QA_fetch_stock_min_adv(["000001", '000002'], start, end).add_func(
-        QA_data_stockmin_resample, level)
+    res2 = QA.QA_fetch_stock_min_adv(["000001",
+                                      '000002'],
+                                     start,
+                                     end).add_func(
+                                         QA_data_stockmin_resample,
+                                         level
+                                     )
     print(res2)

@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 #
-# Copyright (c) 2016-2019 yutiansut/QUANTAXIS
+# Copyright (c) 2016-2020 yutiansut/QUANTAXIS
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,8 +34,9 @@ from QUANTAXIS.QAFetch.QATushare import (
     QA_fetch_get_stock_day,
     QA_fetch_get_stock_info,
     QA_fetch_get_stock_list,
+    QA_fetch_get_stock_block,
     QA_fetch_get_trade_date,
-    QA_fetch_get_lhb
+    QA_fetch_get_lhb,
 )
 from QUANTAXIS.QAUtil import (
     QA_util_date_stamp,
@@ -190,9 +191,11 @@ def QA_SU_save_trade_date_all(client=DATABASE):
 
 
 def QA_SU_save_stock_info(client=DATABASE):
-    data = QA_fetch_get_stock_info('all')
+    data = QA_fetch_get_stock_info('')
+    client.drop_collection('stock_info')
     coll = client.stock_info
-    coll.insert_many(data)
+    coll.create_index('code')
+    coll.insert_many(QA_util_to_json_from_pandas(data.reset_index()))
 
 
 def QA_save_stock_day_all_bfq(client=DATABASE):
@@ -307,7 +310,7 @@ def _saving_work(code, coll_stock_day, ui_log=None, err=[]):
         )
 
         # 首选查找数据库 是否 有 这个代码的数据
-        ref = coll_stock_day.find({'code': str(code)[0:9]})
+        ref = coll_stock_day.find({'code': str(code)[0:6]})
         end_date = now_time()
 
         # 当前数据库已经包含了这个代码的数据， 继续增量更新
@@ -321,7 +324,7 @@ def _saving_work(code, coll_stock_day, ui_log=None, err=[]):
             QA_util_log_info(
                 'UPDATE_STOCK_DAY \n Trying updating {} from {} to {}'
                 .format(code,
-                        start_date,
+                        start_date_new_format,
                         end_date),
                 ui_log
             )
@@ -334,7 +337,7 @@ def _saving_work(code, coll_stock_day, ui_log=None, err=[]):
                                 QA_util_get_next_day(start_date)
                             ),
                             end_date,
-                            'qfq'
+                            'bfq'
                         )
                     )
                 )
@@ -356,7 +359,7 @@ def _saving_work(code, coll_stock_day, ui_log=None, err=[]):
                             str(code),
                             start_date,
                             end_date,
-                            'qfq'
+                            'bfq'
                         )
                     )
                 )
@@ -412,6 +415,26 @@ def QA_SU_save_stock_day(client=DATABASE, ui_log=None, ui_progress=None):
     else:
         QA_util_log_info('ERROR CODE \n ', ui_log)
         QA_util_log_info(err, ui_log)
+
+
+def QA_SU_save_stock_block(client=DATABASE, ui_log=None, ui_progress=None):
+    """
+    Tushare的版块数据
+    
+    Returns:
+        [type] -- [description]
+    """
+    coll = client.stock_block
+    coll.create_index('code')
+    try:
+        # 暂时先只有中证500
+        csindex500 = QA_fetch_get_stock_block()
+        coll.insert_many(
+            QA_util_to_json_from_pandas(csindex500))
+        QA_util_log_info('SUCCESS save stock block ^_^', ui_log)
+    except Exception as e:
+        QA_util_log_info('ERROR CODE \n ', ui_log)
+        QA_util_log_info(e, ui_log)
 
 
 if __name__ == '__main__':
