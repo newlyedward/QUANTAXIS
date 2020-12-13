@@ -38,6 +38,7 @@ try:
     from pyecharts import Kline, Bar, Grid
 except:
     from pyecharts.charts import Kline, Bar, Grid
+    from pyecharts import options as opts
 
 from QUANTAXIS.QAUtil import (
     QA_util_log_info,
@@ -96,7 +97,7 @@ class _quotation_base():
         # 🛠todo 检查 dtype 字符串是否合法， 放到抽象类中，用子类指定数据库， 后期可以支持mongodb分片集群
         # 🛠todo 子类中没有用到mongodb的数据是通过， QA_data_stock_to_fq  实现数据复权的
         # 等价执行 例如：type='stock_min' 则执行 DATABASE.stock_min
-        #self.mongo_coll = eval('DATABASE.{}'.format(self.type))
+        # self.mongo_coll = eval('DATABASE.{}'.format(self.type))
         self.choose_db()
 
     # 不能直接实例化这个类
@@ -336,8 +337,8 @@ class _quotation_base():
     VOL = vol
     Vol = vol
 
-    #OPEN = open
-    #Open = open
+    # OPEN = open
+    # Open = open
     @property
     @lru_cache()
     def OPEN(self):
@@ -684,94 +685,158 @@ class _quotation_base():
         return self.groupby('code').rolling(N)
 
     def kline_echarts(self, code=None):
-
+        # edward todo  修改为支持 pyecharts 1.9
         def kline_formater(param):
             return param.name + ':' + vars(param)
+
+        if self.type[-3:] == 'day':
+            datetime  = self.date.map(lambda x: str(x).split(' ')[0]).to_list()
+        else:
+            datetime = np.array(self.datetime.map(str)).tolist()
 
         """plot the market_data"""
         if code is None:
             path_name = '.' + os.sep + 'QA_' + self.type + \
-                '_codepackage_' + self.if_fq + '.html'
-            kline = Kline(
-                'CodePackage_' + self.if_fq + '_' + self.type,
-                width=1360,
-                height=700,
-                page_title='QUANTAXIS'
-            )
-
-            bar = Bar()
-            data_splits = self.splits()
-
-            for ds in data_splits:
-                data = []
-                axis = []
-                if ds.type[-3:] == 'day':
-                    datetime = np.array(ds.date.map(str))
-                else:
-                    datetime = np.array(ds.datetime.map(str))
-                ohlc = np.array(
-                    ds.data.loc[:,
-                                ['open',
-                                 'close',
-                                 'low',
-                                 'high']]
+                        '_codepackage_' + self.if_fq + '.html'
+            try: # 低版本pyecharts
+                kline = Kline(
+                    'CodePackage_' + self.if_fq + '_' + self.type,
+                    width=1360,
+                    height=700,
+                    page_title='QUANTAXIS'
                 )
 
-                kline.add(
-                    ds.code[0],
-                    datetime,
-                    ohlc,
-                    mark_point=["max",
-                                "min"],
-                    is_datazoom_show=True,
-                    datazoom_orient='horizontal'
+                data_splits = self.splits()
+
+                for ds in data_splits:
+
+                    ohlc = np.array(
+                        ds.data.loc[:,
+                        ['open',
+                         'close',
+                         'low',
+                         'high']]
+                    )
+
+                    kline.add(
+                        ds.code[0],
+                        datetime,
+                        ohlc,
+                        mark_point=["max",
+                                    "min"],
+                        is_datazoom_show=True,
+                        datazoom_orient='horizontal'
+                    )
+                return kline
+            except:  # 适合pyecharts=1.9
+                kline = (
+                    Kline(init_opts=opts.InitOpts(width='1360px', height='700px', page_title='QUANTAXIS'))
+                    .add_xaxis(xaxis_data=datetime)
+                    .set_global_opts(
+                        datazoom_opts=opts.DataZoomOpts(is_show=True, range_end=100),
+                    )
                 )
-            return kline
+
+                data_splits = self.splits()
+
+                for ds in data_splits:
+                    ohlc = ds.data.loc[:, ['open', 'close', 'low', 'high']].values.tolist()
+
+                    kline.add_yaxis(
+                        series_name=ds.code[0],
+                        y_axis=ohlc,
+                        markpoint_opts=opts.MarkPointOpts(
+                            data=[
+                                opts.MarkPointItem(type_='max', name='Max'),
+                                opts.MarkPointItem(type_='min', name='Min'),
+                            ]
+                        ),
+                    )
+                return kline
 
         else:
-            data = []
-            axis = []
             ds = self.select_code(code)
-            data = []
-            #axis = []
-            if self.type[-3:] == 'day':
-                datetime = np.array(ds.date.map(str))
-            else:
-                datetime = np.array(ds.datetime.map(str))
 
-            ohlc = np.array(ds.data.loc[:, ['open', 'close', 'low', 'high']])
-            vol = np.array(ds.volume)
-            kline = Kline(
-                '{}__{}__{}'.format(code,
-                                    self.if_fq,
-                                    self.type),
-                width=1360,
-                height=700,
-                page_title='QUANTAXIS'
-            )
-            bar = Bar()
-            kline.add(self.code, datetime, ohlc,
-                      mark_point=["max", "min"],
-                      # is_label_show=True,
-                      is_datazoom_show=True,
-                      is_xaxis_show=False,
-                      # is_toolbox_show=True,
-                      tooltip_formatter='{b}:{c}',  # kline_formater,
-                      # is_more_utils=True,
-                      datazoom_orient='horizontal')
+            ohlc = ds.data.loc[:, ['open', 'close', 'low', 'high']].values.tolist()
+            vol = ds.volume.map(int).tolist()
+            try:  # pyecharts 低版本？
+                kline = Kline(
+                    '{}__{}__{}'.format(code,
+                                        self.if_fq,
+                                        self.type),
+                    width=1360,
+                    height=700,
+                    page_title='QUANTAXIS'
+                )
+                bar = Bar()
+                kline.add(self.code, datetime, ohlc,
+                          mark_point=["max", "min"],
+                          # is_label_show=True,
+                          is_datazoom_show=True,
+                          is_xaxis_show=False,
+                          # is_toolbox_show=True,
+                          tooltip_formatter='{b}:{c}',  # kline_formater,
+                          # is_more_utils=True,
+                          datazoom_orient='horizontal')
 
-            bar.add(
-                self.code,
-                datetime,
-                vol,
-                is_datazoom_show=True,
-                datazoom_xaxis_index=[0,
-                                      1]
-            )
+                bar.add(
+                    self.code,
+                    datetime,
+                    vol,
+                    is_datazoom_show=True,
+                    datazoom_xaxis_index=[0, 1]
+                )
 
-            grid = Grid(width=1360, height=700, page_title='QUANTAXIS')
-            grid.add(bar, grid_top="80%")
-            grid.add(kline, grid_bottom="30%")
+                grid = Grid(width=1360, height=700, page_title='QUANTAXIS')
+                grid.add(bar, grid_top="80%")
+                grid.add(kline, grid_bottom="30%")
+            except:
+                kline = (
+                    Kline()
+                    .add_xaxis(xaxis_data=datetime)
+                    .add_yaxis(
+                        series_name=code,
+                        y_axis=ohlc,
+                        markpoint_opts=opts.MarkPointOpts(
+                            data=[
+                                opts.MarkPointItem(type_='max', name='Max'),
+                                opts.MarkPointItem(type_='min', name='Min'),
+                            ]
+                        )
+                    )
+                    .set_global_opts(
+                        datazoom_opts=opts.DataZoomOpts(is_show=True, range_end=100),
+                    )
+                )
+                bar = (
+                    Bar()
+                    .add_xaxis(xaxis_data=datetime)
+                    .add_yaxis(
+                        series_name=code,
+                        y_axis=vol,
+                        label_opts=opts.LabelOpts(is_show=False)
+                    )
+                    .set_global_opts(
+                        xaxis_opts=opts.AxisOpts(
+                            type_='category',
+                            grid_index=1,
+                            axislabel_opts=opts.LabelOpts(is_show=False)
+                        ),
+                        legend_opts=opts.LegendOpts(is_show=False),
+                    )
+                )
+
+                grid = (
+                    Grid(
+                        init_opts=opts.InitOpts(
+                            width='1360px',
+                            height='700px',
+                            page_title='QUANTAXIS'
+                        ),)
+                    .add(kline, grid_opts=opts.GridOpts(pos_bottom='30%'))
+                    .add(bar, grid_opts=opts.GridOpts(pos_top='80%'))
+
+                )
             return grid
 
     def plot(self, code=None):
