@@ -528,7 +528,8 @@ def QA_fetch_future_day_adv(
     :return:
     '''
     '获取期货日线'
-    end = start if end is None else end
+    start = '1990-01-01' if start is None else start
+    end = str(datetime.date.today()) if end is None else end
     start = str(start)[0:10]
     end = str(end)[0:10]
 
