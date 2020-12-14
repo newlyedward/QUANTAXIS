@@ -323,3 +323,19 @@ def RENKOP(Series, N, condensed=True):
                   for x in range(1, abs(bricks)+1)]
         last_price = abs(chart[-1])
     return pd.Series(chart)
+
+
+def FX(Series, type_='max'):
+    """
+    求顶分型或者底分型
+    :param Series:
+    :param type_: 分型类型
+    :return:
+    """
+    if type_ in ['max']:
+        return Series[(Series > Series.shift(1)) & (Series > Series.shift(-1))]
+    elif type_ in ['min']:
+        return Series[(Series < Series.shift(1)) & (Series < Series.shift(-1))]
+    else:
+        print("type_='max' or 'min'")
+        return None
